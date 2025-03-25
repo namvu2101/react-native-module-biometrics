@@ -1,5 +1,26 @@
 import { NativeModules, Platform } from 'react-native';
 
+export type AuthenticateProps = {
+  title?: string;
+  subTitle?: string;
+};
+
+export type TSecretValue = {
+  value: string;
+  key: string;
+};
+
+export type AuthenticateWithKeyProps = AuthenticateProps & {
+  key: string;
+};
+
+export type ResponseCheck = { status: boolean; message: string };
+export type ResponseAuth = {
+  status: boolean;
+  authenticationType: string;
+  value?: string | null;
+};
+
 const LINKING_ERROR =
   `The package 'react-native-module-biometrics' doesn't seem to be linked. Make sure: \n\n` +
   Platform.select({ ios: "- You have run 'pod install'\n", default: '' }) +
@@ -19,4 +40,23 @@ const ModuleBiometrics = NativeModules.ModuleBiometrics
 
 export function multiply(a: number, b: number): Promise<number> {
   return ModuleBiometrics.multiply(a, b);
+}
+export function checkAvailableBiometrics(): Promise<ResponseCheck> {
+  return ModuleBiometrics.checkAvailableBiometrics();
+}
+export function getAvailableBiometrics(): Promise<string> {
+  return ModuleBiometrics.getAvailableBiometrics();
+}
+export function authenticate(
+  value: AuthenticateProps = {}
+): Promise<ResponseAuth> {
+  return ModuleBiometrics.authenticate(value);
+}
+export function setSecretValue(props: TSecretValue): Promise<ResponseAuth> {
+  return ModuleBiometrics.setSecretValue(props);
+}
+export function authenticateWithKey(
+  value: AuthenticateWithKeyProps
+): Promise<ResponseAuth> {
+  return ModuleBiometrics.authenticateWithKey(value);
 }
