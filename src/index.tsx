@@ -38,9 +38,6 @@ const ModuleBiometrics = NativeModules.ModuleBiometrics
       }
     );
 
-export function multiply(a: number, b: number): Promise<number> {
-  return ModuleBiometrics.multiply(a, b);
-}
 export function checkAvailableBiometrics(): Promise<ResponseCheck> {
   return ModuleBiometrics.checkAvailableBiometrics();
 }
@@ -52,7 +49,12 @@ export function authenticate(
 ): Promise<ResponseAuth> {
   return ModuleBiometrics.authenticate(value);
 }
+
 export function setSecretValue(props: TSecretValue): Promise<ResponseAuth> {
+  return ModuleBiometrics.setSecretValue(props);
+}
+
+export function setSecretValueWithAuth(props: TSecretValue & AuthenticateProps): Promise<ResponseAuth> {
   return ModuleBiometrics.setSecretValue(props);
 }
 export function authenticateWithKey(

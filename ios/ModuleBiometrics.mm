@@ -1,4 +1,6 @@
 #import "ModuleBiometrics.h"
+#import <LocalAuthentication/LocalAuthentication.h>
+#import <Security/Security.h>
 
 @implementation ModuleBiometrics
 RCT_EXPORT_MODULE()
@@ -13,67 +15,6 @@ RCT_EXPORT_METHOD(multiply:(double)a
     NSNumber *result = @(a * b);
 
     resolve(result);
-}
-RCT_EXPORT_METHOD(authenticate:(JS::NativeBiometricsModule::authenticateProps &)value
-             resolve:(RCTPromiseResolveBlock)resolve
-              reject:(RCTPromiseRejectBlock)reject)
-{
-   LAContext *context = [[LAContext alloc] init];
-  NSError *error = nil;
-  NSString *reason = value.title() ?: @"Authenticate using biometrics";
-
-  if ([context canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics error:&error]) {
-    [context evaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics
-            localizedReason:reason
-                      reply:^(BOOL success, NSError * _Nullable error) {
-      NSString *biometryType = @"None";
-      if (@available(iOS 11.0, *)) {
-        if (context.biometryType == LABiometryTypeFaceID) {
-          biometryType = @"FaceID";
-        } else if (context.biometryType == LABiometryTypeTouchID) {
-          biometryType = @"TouchID";
-        }
-      } else {
-        biometryType = @"Unknown";
-      }
-    
-      if (success) {
-        resolve(@{
-          @"status":@(YES),
-          @"authenticationType": biometryType
-        });
-      } else {
-        reject(@"AUTH_FAILED", error.localizedDescription, error);
-      }
-    }];
-  } else {
-    reject(@"BIOMETRICS_NOT_AVAILABLE", error.localizedDescription, error);
-  }
-}
-
-RCT_EXPORT_METHOD(authenticateWithKey:(JS::NativeBiometricsModule::authenticateWithKeyProps &)value
-                    resolve:(RCTPromiseResolveBlock)resolve
-                     reject:(RCTPromiseRejectBlock)reject)
-{
-  LAContext *context = [[LAContext alloc] init];
-  NSError *error = nil;
-  NSString *key = value.key() ?: @"default_key";
-
-  if ([context canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics error:&error]) {
-    // KHÔNG cần evaluatePolicy thủ công nữa → để việc xác thực do Keychain tự xử lý
-    NSString *retrieved = [self readFromKeychainWithBiometrics:key context:context error:&error];
-
-    if (retrieved != nil) {
-      resolve(@{
-        @"status":@(YES),
-        @"value":retrieved
-      });
-    } else {
-      reject(@"KEY_NOT_FOUND", [NSString stringWithFormat:@"No found key: (%@)", key], nil);
-    }
-  } else {
-    reject(@"BIOMETRICS_NOT_AVAILABLE", error.localizedDescription, error);
-  }
 }
 
 RCT_EXPORT_METHOD(checkAvailableBiometrics:(RCTPromiseResolveBlock)resolve
@@ -143,38 +84,80 @@ RCT_EXPORT_METHOD(getAvailableBiometrics:(RCTPromiseResolveBlock)resolve
   }
 }
 
-RCT_EXPORT_METHOD(setSecretValue:(JS::NativeBiometricsModule::TSecretValue &)props
+RCT_EXPORT_METHOD(authenticate:(NSDictionary *)value
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+   LAContext *context = [[LAContext alloc] init];
+   NSError *error = nil;
+   NSString *reason = value[@"title"] ?: @"Authenticate using biometrics";
+
+   if ([context canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics error:&error]) {
+       [context evaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics
+               localizedReason:reason
+                         reply:^(BOOL success, NSError * _Nullable error) {
+           NSString *biometryType = @"None";
+           if (@available(iOS 11.0, *)) {
+               if (context.biometryType == LABiometryTypeFaceID) {
+                   biometryType = @"FaceID";
+               } else if (context.biometryType == LABiometryTypeTouchID) {
+                   biometryType = @"TouchID";
+               }
+           } else {
+               biometryType = @"Unknown";
+           }
+         
+           if (success) {
+               resolve(@{ @"status": @(YES), @"authenticationType": biometryType });
+           } else {
+               reject(@"AUTH_FAILED", error.localizedDescription, error);
+           }
+       }];
+   } else {
+       reject(@"BIOMETRICS_NOT_AVAILABLE", error.localizedDescription, error);
+   }
+}
+
+RCT_EXPORT_METHOD(authenticateWithKey:(NSDictionary *)value
+                    resolve:(RCTPromiseResolveBlock)resolve
+                     reject:(RCTPromiseRejectBlock)reject)
+{
+   LAContext *context = [[LAContext alloc] init];
+   NSError *error = nil;
+   NSString *key = value[@"key"] ?: @"default_key";
+
+   if ([context canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics error:&error]) {
+       NSString *retrieved = [self readFromKeychainWithBiometrics:key context:context error:&error];
+
+       if (retrieved != nil) {
+           resolve(@{ @"status": @(YES), @"value": retrieved });
+       } else {
+           reject(@"KEY_NOT_FOUND", [NSString stringWithFormat:@"No found key: (%@)", key], nil);
+       }
+   } else {
+       reject(@"BIOMETRICS_NOT_AVAILABLE", error.localizedDescription, error);
+   }
+}
+
+RCT_EXPORT_METHOD(setSecretValue:(NSDictionary *)props
                resolve:(RCTPromiseResolveBlock)resolve
                 reject:(RCTPromiseRejectBlock)reject)
-{ LAContext *context = [[LAContext alloc] init];
-  NSError *error = nil;
-  NSString *key = props.key();
-  NSString *value = props.value();
-//  NSString *key = value.key() ?: @"default_key";
-  if ([context canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics error:&error]) {
-    [context evaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics
-            localizedReason:@"Authenticate using biometrics"
-                      reply:^(BOOL success, NSError * _Nullable error) {
-     
-      if (success) {
-        BOOL success2 = [self saveToKeychainWithBiometrics:key value:value context:[[LAContext alloc] init] error:&error];
-        if (success2) {
-          resolve(@{
-            @"status":@(YES),
-            @"value":value
-          });
-        } else {
-          reject(@"STORE_FAILED", @"Unable to store value in keychain", nil);
-        }
-      
-      } else {
-        reject(@"AUTH_FAILED", error.localizedDescription, error);
-      }
-    }];
-  } else {
-    reject(@"BIOMETRICS_NOT_AVAILABLE", error.localizedDescription, error);
-  }
+{
+   LAContext *context = [[LAContext alloc] init];
+   NSError *error = nil;
+   NSString *key = props[@"key"];
+   NSString *value = props[@"value"];
 
+   if ([context canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics error:&error]) {
+       BOOL success = [self saveToKeychainWithBiometrics:key value:value context:context error:&error];
+       if (success) {
+           resolve(@{ @"status": @(YES), @"value": value });
+       } else {
+           reject(@"STORE_FAILED", @"Unable to store value in keychain", nil);
+       }
+   } else {
+       reject(@"BIOMETRICS_NOT_AVAILABLE", error.localizedDescription, error);
+   }
 }
 
 #pragma mark - Keychain helpers

@@ -36,33 +36,36 @@ class ModuleBiometricsModule(reactContext: ReactApplicationContext) :
     return NAME
   }
 
-  // Example method
-  // See https://reactnative.dev/docs/native-modules-android
-  @ReactMethod
-  fun multiply(a: Double, b: Double, promise: Promise) {
-    promise.resolve(a * b)
-  }
-
-  @ReactMethod
-   fun checkAvailableBiometrics(promise: Promise?) {
+  private fun checkBiometrics(): WritableMap {
+    val statusMap: WritableMap = Arguments.createMap()
     try {
-      val manager = BiometricManager.from(reactApplicationContext)
-      val statusMap = Arguments.createMap()
-      val status = manager.canAuthenticate(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)
-      val (success, msg) = when (status) {
-        BiometricManager.BIOMETRIC_SUCCESS -> true to "BIOMETRIC_SUCCESS"
-        BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> false to "BIOMETRIC_ERROR_NO_HARDWARE"
-        BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> false to "BIOMETRIC_ERROR_HW_UNAVAILABLE"
-        BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> false to "BIOMETRIC_ERROR_NONE_ENROLLED"
-        else -> false to "BIOMETRIC_UNKNOWN_ERROR"
-      }
-      statusMap.putBoolean("status", success)
-      statusMap.putString("message", msg)
-      promise?.resolve(statusMap)
+        val manager = BiometricManager.from(reactApplicationContext)
+        val status = manager.canAuthenticate(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)
+        val (success, msg) = when (status) {
+            BiometricManager.BIOMETRIC_SUCCESS -> true to "BIOMETRIC_SUCCESS"
+            BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> false to "BIOMETRIC_ERROR_NO_HARDWARE"
+            BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> false to "BIOMETRIC_ERROR_HW_UNAVAILABLE"
+            BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> false to "BIOMETRIC_ERROR_NONE_ENROLLED"
+            else -> false to "BIOMETRIC_UNKNOWN_ERROR"
+        }
+        statusMap.putBoolean("status", success)
+        statusMap.putString("message", msg)
     } catch (e: Exception) {
-      promise?.reject("CHECK_BIOMETRIC_ERROR", e.message, e)
+        statusMap.putBoolean("status", false)
+        statusMap.putString("message", "CHECK_BIOMETRIC_ERROR: ${e.localizedMessage}")
     }
-  }
+    return statusMap
+}
+
+@ReactMethod
+fun checkAvailableBiometrics(promise: Promise) {
+    try {
+        val checkResult = checkBiometrics()
+        promise.resolve(checkResult)
+    } catch (e: Exception) {
+        promise.reject("CHECK_BIOMETRIC_ERROR", e.localizedMessage, e)
+    }
+}
 
   @ReactMethod
   fun getAvailableBiometrics(promise: Promise?) {
@@ -144,7 +147,6 @@ class ModuleBiometricsModule(reactContext: ReactApplicationContext) :
 
           override fun onAuthenticationFailed() {
             super.onAuthenticationFailed()
-            promise?.reject("AUTH_FAILED", "AUTH_FAILED")
           }
         }
       )
@@ -227,7 +229,6 @@ class ModuleBiometricsModule(reactContext: ReactApplicationContext) :
 
           override fun onAuthenticationFailed() {
             super.onAuthenticationFailed()
-            promise?.reject("DECRYPT_FAILED", "DECRYPT_FAILED")
           }
         }
       )
@@ -311,7 +312,6 @@ class ModuleBiometricsModule(reactContext: ReactApplicationContext) :
 
         override fun onAuthenticationFailed() {
           super.onAuthenticationFailed()
-          promise?.reject("AUTH_FAILED", "AUTH_FAILED")
         }
       }
     )

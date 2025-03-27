@@ -4,6 +4,8 @@
     "paths": {
       "react-native-module-biometrics": ["./src/index"]
     },
+    "allowJs": true,
+    "checkJs": true,
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
     "esModuleInterop": true,
