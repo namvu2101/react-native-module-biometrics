@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReadableMap
+import com.facebook.react.bridge.WritableMap
 import java.security.KeyStore
 import java.util.concurrent.Executor
 import javax.crypto.Cipher
@@ -113,6 +114,11 @@ fun checkAvailableBiometrics(promise: Promise) {
     val activity = currentActivity as? FragmentActivity ?: return promise?.reject("NO_ACTIVITY", "Invalid or missing activity.")!!
 
     try {
+      val checkResult = checkBiometrics()
+      if (!checkResult.getBoolean("status")){
+        promise?.reject("CHECK_BIOMETRIC_ERROR","CHECK_BIOMETRIC_ERROR")
+        return
+      }
       executor = ContextCompat.getMainExecutor(reactApplicationContext)
       val fragmentActivity = activity as? FragmentActivity
       if (fragmentActivity == null) {
